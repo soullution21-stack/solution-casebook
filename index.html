@@ -161,26 +161,29 @@ const mainTitleEl=$('mainTitle');
 if(mainTitleEl)mainTitleEl.addEventListener('dblclick',()=>{if(!adminMode)enterAdminMode();else exitAdminMode();});
 els.toggleAdminBtn.onclick=exitAdminMode;els.toggleHiddenBtn.onclick=()=>{showHidden=!showHidden;els.toggleHiddenBtn.textContent=showHidden?'숨긴 카드 보기 ON':'숨긴 카드 보기 OFF';els.toggleHiddenBtn.classList.toggle('warn',showHidden);apply()};
 async function saveToGithub(){
-  if(!GITHUB_TOKEN||GITHUB_TOKEN==='REPLACE_TOKEN'){alert('GitHub Token이 설정되지 않았습니다.\nindex.html에서 REPLACE_TOKEN을 실제 토큰으로 교체해주세요.');return;}
+  let token=sessionStorage.getItem('gh_token');
+  if(!token){
+    token=prompt('GitHub Token을 입력하세요:\n(브라우저 닫으면 자동으로 사라집니다)');
+    if(!token)return;
+    token=token.trim();
+    sessionStorage.setItem('gh_token',token);
+  }
   const btn=els.githubSaveBtn;
   btn.textContent='저장 중...';btn.disabled=true;
   try{
-    // GitHub에서 현재 파일 SHA + 내용 가져오기
     const shaRes=await fetch('https://api.github.com/repos/'+GITHUB_REPO+'/contents/'+GITHUB_FILE,{
-      headers:{'Authorization':'token '+GITHUB_TOKEN,'Accept':'application/vnd.github.v3+json'}
+      headers:{'Authorization':'token '+token,'Accept':'application/vnd.github.v3+json'}
     });
     if(!shaRes.ok)throw new Error('GitHub 파일 조회 실패: '+shaRes.status);
     const shaData=await shaRes.json();
-    // 현재 HTML에서 DEFAULT_DATA만 최신 DATA로 교체
     const currentContent=decodeURIComponent(escape(atob(shaData.content.replace(/\n/g,''))));
     const dataStr=JSON.stringify(DATA);
     const updated=currentContent.replace(/const DEFAULT_DATA=\[[\s\S]*?\];/,'const DEFAULT_DATA='+dataStr+';');
     if(updated===currentContent){throw new Error('DEFAULT_DATA 교체 실패 - 패턴을 찾지 못했습니다.');}
     const encoded=btoa(unescape(encodeURIComponent(updated)));
-    // 파일 업데이트
     const res=await fetch('https://api.github.com/repos/'+GITHUB_REPO+'/contents/'+GITHUB_FILE,{
       method:'PUT',
-      headers:{'Authorization':'token '+GITHUB_TOKEN,'Content-Type':'application/json','Accept':'application/vnd.github.v3+json'},
+      headers:{'Authorization':'token '+token,'Content-Type':'application/json','Accept':'application/vnd.github.v3+json'},
       body:JSON.stringify({message:'Update casebook data - '+new Date().toLocaleString('ko-KR'),content:encoded,sha:shaData.sha})
     });
     if(res.ok){
@@ -191,7 +194,12 @@ async function saveToGithub(){
       throw new Error('GitHub API 오류 '+res.status+': '+(errData.message||''));
     }
   }catch(e){
-    alert('저장 실패: '+e.message);
+    if(e.message.includes('401')||e.message.includes('403')){
+      sessionStorage.removeItem('gh_token');
+      alert('토큰이 올바르지 않습니다. 다시 시도해주세요.');
+    }else{
+      alert('저장 실패: '+e.message);
+    }
     btn.textContent='🔄 GitHub에 저장';
     btn.disabled=false;
   }
