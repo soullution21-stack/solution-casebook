@@ -997,7 +997,9 @@ async function saveToGithub(){
     // ↓ 이 3줄 추가
     const now=new Date();
     const newVersion=String(now.getMonth()+1).padStart(2,'0')+String(now.getDate()).padStart(2,'0')+String(now.getHours()).padStart(2,'0')+String(now.getMinutes()).padStart(2,'0');
-    const updated2=updated.replace(/const VERSION\s*=\s*'[^']+';[^\n]*/m,`const VERSION       = '${newVersion}';  // 버전 (월일시분 MMDDHHMI)`);
+    const vIdx=updated.indexOf("const VERSION       = '");
+    const vEnd=updated.indexOf("'",vIdx+24);
+    const updated2=updated.slice(0,vIdx+24)+newVersion+updated.slice(vEnd);
 
     if(updated===currentContent)throw new Error('DEFAULT_DATA 교체 실패...');
     // 3. UTF-8 safe base64 인코딩
