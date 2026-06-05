@@ -993,10 +993,15 @@ async function saveToGithub(){
     const e=currentContent.indexOf(markerStr)+markerStr.length+3;
     if(s<0||e<3){throw new Error('DEFAULT_DATA 마커를 찾지 못했습니다.');}
     const updated=currentContent.slice(0,s)+'const DEFAULT_DATA='+dataStr+'\n'+markerStr+'\n];'+currentContent.slice(e);
-    if(updated===currentContent)throw new Error('DEFAULT_DATA 교체 실패 — END_DEFAULT_DATA 마커를 찾지 못했습니다.');
 
+    // ↓ 이 3줄 추가
+    const now=new Date();
+    const newVersion=String(now.getMonth()+1).padStart(2,'0')+String(now.getDate()).padStart(2,'0')+String(now.getHours()).padStart(2,'0')+String(now.getMinutes()).padStart(2,'0');
+    const updated2=updated.replace(/const VERSION\s+=\s+'[0-9]+';.*$/m,`const VERSION       = '${newVersion}';  // 버전 (월일시분 MMDDHHMI)`);
+
+    if(updated2===currentContent)throw new Error('DEFAULT_DATA 교체 실패 — END_DEFAULT_DATA 마커를 찾지 못했습니다.');
     // 3. UTF-8 safe base64 인코딩
-    const encoded=btoa(unescape(encodeURIComponent(updated)));
+    const encoded=btoa(unescape(encodeURIComponent(updated2)));
 
     // 4. 파일 업데이트
     const res=await fetch('https://api.github.com/repos/'+GITHUB_REPO+'/contents/'+GITHUB_FILE,{
